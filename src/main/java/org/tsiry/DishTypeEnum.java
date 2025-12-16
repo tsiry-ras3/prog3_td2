@@ -1,4 +1,7 @@
 package org.tsiry;
 
-public class DishTypeEnum {
+public enum DishTypeEnum {
+    START,
+    MAIN,
+    DESSERT
 }

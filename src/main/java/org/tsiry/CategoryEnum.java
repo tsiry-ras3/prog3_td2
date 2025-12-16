@@ -1,4 +1,9 @@
 package org.tsiry;
 
-public class CategoryEnum {
+public enum CategoryEnum {
+    VEGETABLE,
+    ANIMAL,
+    MARINE,
+    DAIRY,
+    OTHER
 }
