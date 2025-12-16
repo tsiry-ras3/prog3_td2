@@ -6,9 +6,9 @@ import java.sql.SQLException;
 
 public class DBConnection {
     public Connection getConnection() {
-        String url = "jdbc:postgresql://localhost:5432/mini_dish_db";
-        String user = "mini_dish_db_manager";
-        String password = "123456";
+        String url = System.getenv("JDBC_URL");
+        String user = System.getenv("USERNAME");
+        String password = System.getenv("PASSWORD");
 
         Connection conn = null;
         try {
