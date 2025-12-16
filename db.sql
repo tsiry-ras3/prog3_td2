@@ -1,6 +1,6 @@
 Create database mini_dish_db;
 
-Create user mini_dish_db_manager with password '12345';
+Create user mini_dish_db_manager with password '123456';
 
 \c mini_dish_db;
 
