@@ -9,6 +9,8 @@ public class Main {
     static void main() {
         DBConnection db = new DBConnection();
         Connection con = db.getConnection();
-        System.out.println(con);
+
+        DataRetriever dataRetriever = new DataRetriever();
+        System.out.println(dataRetriever.findDishById(1));
     }
 }

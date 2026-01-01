@@ -1,5 +1,6 @@
 package org.tsiry;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class Dish {
@@ -14,6 +15,29 @@ public class Dish {
         this.name = name;
         this.dishType = dishType;
         this.ingredients = ingredients;
+    }
+
+    public List<String> getNamesOfIngredients() {
+        List<String> names = new ArrayList<>();
+
+        if (this.ingredients != null) {
+            for (Ingredient ingredient : ingredients) {
+                ingredient.getCategoryName();
+                names.add(ingredient.getName());
+            }
+        }
+        return names;
+    }
+
+
+    @Override
+    public String toString() {
+        return "Dish{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", dishType=" + dishType +
+                ", ingredients=" + getNamesOfIngredients() +
+                '}';
     }
 
     public Dish() {

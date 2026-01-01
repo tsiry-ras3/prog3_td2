@@ -15,6 +15,22 @@ public class Ingredient {
         this.dish = dish;
     }
 
+    public String getCategoryName() {
+        return this.category.toString();
+    }
+
+
+    @Override
+    public String toString() {
+        return "Ingredient{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", price=" + price +
+                ", category=" + getCategoryName() +
+                ", dish=" + dish +
+                '}';
+    }
+
     public Ingredient() {
     }
 
