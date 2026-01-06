@@ -26,6 +26,6 @@ Create table Ingredient (
     name varchar(255),
     price numeric(10,2),
     category ingredient_category_enum,
-    id_dish int not null,
+    id_dish int,
     constraint fk_dish foreign key (id_dish) references dish (id)
 );

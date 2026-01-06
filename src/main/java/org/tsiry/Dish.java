@@ -37,7 +37,8 @@ public class Dish {
                 ", name='" + name + '\'' +
                 ", dishType=" + dishType +
                 ", ingredients=" + getNamesOfIngredients() +
-                '}';
+                '}'+
+                '\n';
     }
 
     public Dish() {

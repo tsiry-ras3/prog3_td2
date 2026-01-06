@@ -5,17 +5,19 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class DataRetriever {
     private DBConnection dbConnection = new DBConnection();
 
-   public Dish findDishById(Integer id){
+    public Dish findDishById(Integer id) {
         String sql = "select d.id, d.name, d.dish_type, i.name as ingredient_name from Dish d join Ingredient i on " +
                 "i.id_dish = d.id where d.id=?";
         Dish dish = null;
 
-        try{
+        try {
             Connection conn = dbConnection.getConnection();
             PreparedStatement pstmt = conn.prepareStatement(sql);
             pstmt.setInt(1, id);
@@ -23,7 +25,7 @@ public class DataRetriever {
             ResultSet rs = pstmt.executeQuery();
 
             List<Ingredient> ingredients = new ArrayList<>();
-            while(rs.next()){
+            while (rs.next()) {
                 Dish d = new Dish();
                 d.setId(rs.getInt("id"));
                 d.setName(rs.getString("name"));
@@ -37,18 +39,17 @@ public class DataRetriever {
             }
 
 
-
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
         return dish;
     }
 
-    public List<Ingredient> findIngredients(int page, int size){
+    public List<Ingredient> findIngredients(int page, int size) {
         List<Ingredient> ingredients = new ArrayList<>();
         String sql = "select i.id, i.name, i.price, i.category, d.id as dish_id, d.name as dish_name, d.dish_type from Ingredient i join Dish d " +
                 "on i.id_dish = d.id limit ? offset ?";
-        try{
+        try {
             Connection conn = dbConnection.getConnection();
             PreparedStatement pstmt = conn.prepareStatement(sql);
 
@@ -56,7 +57,7 @@ public class DataRetriever {
             pstmt.setInt(2, size);
 
             ResultSet rs = pstmt.executeQuery();
-            while(rs.next()){
+            while (rs.next()) {
                 Ingredient ingredient = new Ingredient();
                 ingredient.setId(rs.getInt("id"));
                 ingredient.setName(rs.getString("name"));
@@ -69,7 +70,7 @@ public class DataRetriever {
                 dish.setDishType(DishTypeEnum.valueOf(rs.getString("dish_type")));
 
                 ingredient.setDish(dish);
-            ingredients.add(ingredient);
+                ingredients.add(ingredient);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -77,12 +78,123 @@ public class DataRetriever {
         return ingredients;
     }
 
-//    public List<Ingredient> createIngredients(List<Ingredient> newIngredients){}
+    public List<Ingredient> createIngredients(List<Ingredient> newIngredients) {
+        Set<String> names = new HashSet<>();
+        for (Ingredient ingredient : newIngredients) {
+            if (!names.add(ingredient.getName())) {
+                throw new RuntimeException("Doublon dans la liste d'ingredient : " + ingredient.getName());
+            }
+        }
+
+        List<Ingredient> created = new ArrayList<>();
+
+        Connection conn = null;
+        PreparedStatement check = null;
+        PreparedStatement insert = null;
+        ResultSet rs = null;
+
+        try {
+            conn = dbConnection.getConnection();
+            conn.setAutoCommit(false);
+
+            String checkSql = "select name from Ingredient where name ilike ?";
+
+            check = conn.prepareStatement(checkSql);
+
+            for (Ingredient ingredient : newIngredients) {
+                check.setString(1, ingredient.getName());
+                rs = check.executeQuery();
+
+
+                if (rs.next()) {
+                    conn.rollback();
+                    throw new RuntimeException(
+                            "Ingredient deja existant: " + ingredient.getName()
+                    );
+                }
+
+                rs.close();
+                rs = null;
+            }
+
+            String insertSql = "insert into Ingredient (id, name, price, category) values (?, ?, ?, ?::" +
+                    "ingredient_category_enum) returning id, name, price, category";
+
+            insert = conn.prepareStatement(insertSql);
+            int nextId = getMaxId() + 1;
+            for (Ingredient ingredient : newIngredients) {
+
+                insert.setInt(1, nextId);
+                insert.setString(2, ingredient.getName());
+                insert.setDouble(3, ingredient.getPrice());
+                insert.setString(4, ingredient.getCategoryName());
+
+                rs = insert.executeQuery();
+                if (rs.next()) {
+                    Ingredient createdIngredient = new Ingredient(
+                            rs.getInt("id"),
+                            rs.getString("name"),
+                            rs.getDouble("price"),
+                            CategoryEnum.valueOf(rs.getString("category"))
+                    );
+
+                    created.add(createdIngredient);
+                }
+                nextId++;
+
+                rs.close();
+                rs = null;
+            }
+
+            conn.commit();
+            return created;
+
+        } catch (SQLException e) {
+            if (conn != null) {
+                try{
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+            throw new RuntimeException(e);
+        } finally {
+            try {
+                if (rs != null) rs.close();
+                if (check != null) check.close();
+                if (insert != null) insert.close();
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                }
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+    }
 //
 //    public Dish saveDish(Dish dishToSave){}
 //
 //    public List<Dish> findDishsByIngredientName(String ingredientName){}
 //
 //    public List<Ingredient> findngredientsByCriteria(String ingredientName, CategoryEnum category, String dishName, int page, int size){}
+
+
+    public int getMaxId() {
+        int maxId = 0;
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        String sql = "select max(id) as max_id from Ingredient";
+        try {
+            conn = dbConnection.getConnection();
+            pstmt = conn.prepareStatement(sql);
+
+            ResultSet rs = pstmt.executeQuery();
+            return rs.next() ? rs.getInt("max_id") : maxId;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
 }
