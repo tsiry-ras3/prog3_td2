@@ -267,8 +267,85 @@ public List<Dish> findDishsByIngredientName(String ingredientName) {
         }
     }
 }
-//
-//    public List<Ingredient> findngredientsByCriteria(String ingredientName, CategoryEnum category, String dishName, int page, int size){}
+
+public List<Ingredient> findIngredientsByCriteria(String ingredientName, CategoryEnum category, String dishName, int page, int size) {
+    List<Ingredient> ingredients = new ArrayList<>();
+    Connection conn = null;
+    PreparedStatement stmt = null;
+    ResultSet rs = null;
+
+    try {
+        conn = dbConnection.getConnection();
+
+        StringBuilder sql = new StringBuilder();
+        sql.append("select i.id, i.name, i.price, i.category, i.id_dish " +
+                "from ingredient i " +
+                "left join dish d on i.id_dish = d.id " +
+                "where 1=1 ");
+
+        List<Object> params = new ArrayList<>();
+
+        if (ingredientName != null && !ingredientName.trim().isEmpty()) {
+            sql.append("and i.name ilike ? ");
+            params.add("%" + ingredientName + "%");
+        }
+
+        if (category != null) {
+            sql.append("and i.category = ?::ingredient_category_enum ");
+            params.add(category.toString());
+        }
+
+        if (dishName != null && !dishName.trim().isEmpty()) {
+            sql.append("and d.name ilike ? ");
+            params.add("%" + dishName + "%");
+        }
+
+        sql.append("order by i.id ");
+        sql.append("limit ? offset ?");
+
+        stmt = conn.prepareStatement(sql.toString());
+
+        int paramIndex = 1;
+        for (Object param : params) {
+            stmt.setObject(paramIndex++, param);
+        }
+
+        stmt.setInt(paramIndex++, size);
+        stmt.setInt(paramIndex, (page - 1) * size);
+
+        rs = stmt.executeQuery();
+
+        while (rs.next()) {
+            Ingredient ingredient = new Ingredient(
+                    rs.getInt("id"),
+                    rs.getString("name"),
+                    rs.getDouble("price"),
+                    CategoryEnum.valueOf(rs.getString("category"))
+            );
+
+            if (rs.getObject("id_dish") != null) {
+                Dish dish = new Dish();
+                dish.setId(rs.getInt("id_dish"));
+                ingredient.setDish(dish);
+            }
+
+            ingredients.add(ingredient);
+        }
+
+        return ingredients;
+
+    } catch (SQLException e) {
+        throw new RuntimeException("erreur recherche ingredients: " + e.getMessage(), e);
+    } finally {
+        try {
+            if (rs != null) rs.close();
+            if (stmt != null) stmt.close();
+            if (conn != null) conn.close();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
 
 
     public int getMaxIngredientId() {

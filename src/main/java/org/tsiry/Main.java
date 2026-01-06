@@ -24,8 +24,29 @@ public class Main {
 //                )
 //        );
 
-        System.out.println(dataRetriever.findDishsByIngredientName("eur"));
+//        System.out.println(dataRetriever.findDishsByIngredientName("eur"));
 
+        System.out.println(dataRetriever.findIngredientsByCriteria(
+                null,
+                CategoryEnum.VEGETABLE,
+                "sal",
+                1,
+                10
+        ));
+        System.out.println(dataRetriever.findIngredientsByCriteria(
+                "cho",
+                null,
+                "Sal",
+                1,
+                10
+        ));
+        System.out.println(dataRetriever.findIngredientsByCriteria(
+                "cho",
+                null,
+                "g",
+                1,
+                10
+        ));
 
 //        System.out.println(dataRetriever.fin);?
     }
