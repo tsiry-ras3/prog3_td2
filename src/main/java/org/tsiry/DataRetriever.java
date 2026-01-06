@@ -121,7 +121,7 @@ public class DataRetriever {
                     "ingredient_category_enum) returning id, name, price, category";
 
             insert = conn.prepareStatement(insertSql);
-            int nextId = getMaxId() + 1;
+            int nextId = getMaxIngredientId() + 1;
             for (Ingredient ingredient : newIngredients) {
 
                 insert.setInt(1, nextId);
@@ -151,7 +151,7 @@ public class DataRetriever {
 
         } catch (SQLException e) {
             if (conn != null) {
-                try{
+                try {
                     conn.rollback();
                 } catch (SQLException ex) {
                     throw new RuntimeException(ex);
@@ -173,25 +173,131 @@ public class DataRetriever {
         }
 
     }
+
+    //
+//    public Dish saveDish(Dish dishToSave) {
+//        String checkDishSql = "select id, name from Dish where name ilike ?";
+//        String dishSql = null;
+//        String updateIngredientOfDishSql = "update Ingredient set id_dish = ? where name ilike ?";
+//        Connection conn = null;
+//        ResultSet rs = null;
+//        boolean dishExists = false;
+//        int idDishExists = 0;
+//        try {
+//            conn = dbConnection.getConnection();
+//            PreparedStatement checkDishStmt = conn.prepareStatement(checkDishSql);
+//            checkDishStmt.setString(1, dishToSave.getName());
+//            rs = checkDishStmt.executeQuery();
+//            dishExists = rs.next();
+//            idDishExists = rs.getInt("id");
+//            rs.close();
 //
-//    public Dish saveDish(Dish dishToSave){}
 //
-//    public List<Dish> findDishsByIngredientName(String ingredientName){}
+//            if (dishExists) {
+//                dishSql = "update Dish " +
+//                        "set dish_type = ?::dish_type_enum;";
+//            } else {
+//                dishSql = "insert into Dish (id, name, dish_type) values (?, ?, ?, ?::dish_type_enum)" +
+//                        "returning id, name, dish_type;";
+//            }
+//
+//            PreparedStatement statement = conn.prepareStatement(dishSql);
+//            int nextIdDish = getMaxDishId() + 1;
+//            if (!dishExists) {
+//
+//                statement.setInt(1, nextIdDish);
+//                statement.setString(2, dishToSave.getName());
+//                statement.setString(3, dishToSave.getDishType().name());
+//            } else {
+//                statement.setInt(1, idDishExists);
+//            }
+//
+//            rs = statement.executeQuery();
+//            if (rs.next()) {
+//                dishToSave.setId(rs.getInt("id"));
+//            }
+//
+//
+//        } catch (SQLException e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
+//
+public List<Dish> findDishsByIngredientName(String ingredientName) {
+    List<Dish> dishes = new ArrayList<>();
+    Connection conn = null;
+    PreparedStatement stmt = null;
+    ResultSet rs = null;
+
+    try {
+        conn = dbConnection.getConnection();
+
+        String sql = "select d.id, d.name, d.dish_type " +
+                "from dish d " +
+                "join ingredient i on d.id = i.id_dish " +
+                "where i.name ilike ? " +
+                "group by d.id, d.name, d.dish_type " +
+                "order by d.name";
+
+        stmt = conn.prepareStatement(sql);
+        stmt.setString(1, "%" + ingredientName + "%");
+
+        rs = stmt.executeQuery();
+
+        while (rs.next()) {
+            Dish dish = new Dish(
+                    rs.getInt("id"),
+                    rs.getString("name"),
+                    DishTypeEnum.valueOf(rs.getString("dish_type"))
+            );
+            dishes.add(dish);
+        }
+
+        return dishes;
+
+    } catch (SQLException e) {
+        throw new RuntimeException("Erreur recherche plats: " + e.getMessage(), e);
+    } finally {
+        try {
+            if (rs != null) rs.close();
+            if (stmt != null) stmt.close();
+            if (conn != null) conn.close();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
 //
 //    public List<Ingredient> findngredientsByCriteria(String ingredientName, CategoryEnum category, String dishName, int page, int size){}
 
 
-    public int getMaxId() {
+    public int getMaxIngredientId() {
         int maxId = 0;
         Connection conn = null;
         PreparedStatement pstmt = null;
-        String sql = "select max(id) as max_id from Ingredient";
+        String sql = "select max(id) as max_id from Ingredient group by id";
         try {
             conn = dbConnection.getConnection();
             pstmt = conn.prepareStatement(sql);
 
             ResultSet rs = pstmt.executeQuery();
             return rs.next() ? rs.getInt("max_id") : maxId;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public int getMaxDishId() {
+        String sql = "select max(id) as max_id from dish group by id";
+        try {
+            Connection conn = dbConnection.getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("max_id");
+            }
+            return 0;
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }

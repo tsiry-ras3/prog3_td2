@@ -30,6 +30,12 @@ public class Dish {
     }
 
 
+    public Dish(int id, String name, DishTypeEnum dishType) {
+        this.id = id;
+        this.name = name;
+        this.dishType = dishType;
+    }
+
     @Override
     public String toString() {
         return "Dish{" +
