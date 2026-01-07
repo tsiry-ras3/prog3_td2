@@ -13,3 +13,10 @@ INSERT INTO Ingredient (id, name, price, category, id_dish) VALUES
 (3, 'Poulet', 4500.00, 'ANIMAL', 2),
 (4, 'Chocolat', 3000.00, 'OTHER', 4),
 (5, 'Beurre', 2500.00, 'DAIRY', 4);
+
+
+UPDATE ingredient SET required_quantity = 1   WHERE name ILIKE 'Laitue';
+UPDATE ingredient SET required_quantity = 2   WHERE name ILIKE 'Tomate';
+UPDATE ingredient SET required_quantity = 0.5 WHERE name ILIKE 'Poulet';
+UPDATE ingredient SET required_quantity = NULL WHERE name ILIKE 'Chocolat';
+UPDATE ingredient SET required_quantity = NULL WHERE name ILIKE 'Beurre';

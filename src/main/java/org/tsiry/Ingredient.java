@@ -6,6 +6,7 @@ public class Ingredient {
     private double price;
     private CategoryEnum category;
     private Dish dish;
+    private double requiredQuantity;
 
     public Ingredient(int id, String name, double price, CategoryEnum category, Dish dish) {
         this.id = id;
@@ -96,5 +97,9 @@ public class Ingredient {
 
     public void setDish(Dish dish) {
         this.dish = dish;
+    }
+
+    public Double getDishCost(){
+
     }
 }

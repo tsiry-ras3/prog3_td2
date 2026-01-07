@@ -13,3 +13,9 @@ grant Create on schema public to mini_dish_db_manager;
 
 grant select, update, delete, insert on all tables in schema public to mini_dish_db_manager;
 grant usage, select on all sequences in schema public to mini_dish_db_manager;
+
+ALTER TABLE ingredient OWNER TO mini_dish_db_manager;
+ALTER TABLE dish OWNER TO mini_dish_db_manager;
+
+ALTER TABLE ingredient
+ADD COLUMN IF NOT EXISTS required_quantity NUMERIC;
