@@ -42,7 +42,11 @@ public class DataRetriever {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
-        return dish;
+        if (dish != null) {
+            return dish;
+        }else {
+            throw new RuntimeException();
+        }
     }
 
     public List<Ingredient> findIngredients(int page, int size) {
@@ -174,55 +178,122 @@ public class DataRetriever {
 
     }
 
-    //
-//    public Dish saveDish(Dish dishToSave) {
-//        String checkDishSql = "select id, name from Dish where name ilike ?";
-//        String dishSql = null;
-//        String updateIngredientOfDishSql = "update Ingredient set id_dish = ? where name ilike ?";
-//        Connection conn = null;
-//        ResultSet rs = null;
-//        boolean dishExists = false;
-//        int idDishExists = 0;
-//        try {
-//            conn = dbConnection.getConnection();
-//            PreparedStatement checkDishStmt = conn.prepareStatement(checkDishSql);
-//            checkDishStmt.setString(1, dishToSave.getName());
-//            rs = checkDishStmt.executeQuery();
-//            dishExists = rs.next();
-//            idDishExists = rs.getInt("id");
-//            rs.close();
-//
-//
-//            if (dishExists) {
-//                dishSql = "update Dish " +
-//                        "set dish_type = ?::dish_type_enum;";
-//            } else {
-//                dishSql = "insert into Dish (id, name, dish_type) values (?, ?, ?, ?::dish_type_enum)" +
-//                        "returning id, name, dish_type;";
-//            }
-//
-//            PreparedStatement statement = conn.prepareStatement(dishSql);
-//            int nextIdDish = getMaxDishId() + 1;
-//            if (!dishExists) {
-//
-//                statement.setInt(1, nextIdDish);
-//                statement.setString(2, dishToSave.getName());
-//                statement.setString(3, dishToSave.getDishType().name());
-//            } else {
-//                statement.setInt(1, idDishExists);
-//            }
-//
-//            rs = statement.executeQuery();
-//            if (rs.next()) {
-//                dishToSave.setId(rs.getInt("id"));
-//            }
-//
-//
-//        } catch (SQLException e) {
-//            throw new RuntimeException(e);
-//        }
-//    }
-//
+
+    public Dish saveDish(Dish dishToSave) {
+        Connection conn = null;
+        PreparedStatement checkDishStmt = null;
+        PreparedStatement dishStmt = null;
+        PreparedStatement dissociateStmt = null;
+        PreparedStatement associateStmt = null;
+        ResultSet rs = null;
+
+        try {
+            conn = dbConnection.getConnection();
+            conn.setAutoCommit(false);
+
+            boolean dishExists = false;
+            int existingDishId = 0;
+
+            String checkDishSql = "select id from dish where name ilike ?";
+            checkDishStmt = conn.prepareStatement(checkDishSql);
+            checkDishStmt.setString(1, dishToSave.getName());
+            rs = checkDishStmt.executeQuery();
+
+            if (rs.next()) {
+                dishExists = true;
+                existingDishId = rs.getInt("id");
+                dishToSave.setId(existingDishId);
+            }
+            rs.close();
+
+            if (dishExists) {
+                String updateDishSql = "update dish set dish_type = ?::dish_type_enum where id = ? returning id, name, dish_type";
+                dishStmt = conn.prepareStatement(updateDishSql);
+                dishStmt.setString(1, dishToSave.getDishType().name());
+                dishStmt.setInt(2, dishToSave.getId());
+            } else {
+                int nextId = getMaxDishId() + 1;
+                dishToSave.setId(nextId);
+
+                String insertDishSql = "insert into dish (id, name, dish_type) values (?, ?, ?::dish_type_enum) returning id, name, dish_type";
+                dishStmt = conn.prepareStatement(insertDishSql);
+                dishStmt.setInt(1, dishToSave.getId());
+                dishStmt.setString(2, dishToSave.getName());
+                dishStmt.setString(3, dishToSave.getDishType().name());
+            }
+
+            rs = dishStmt.executeQuery();
+            if (rs.next()) {
+                dishToSave.setId(rs.getInt("id"));
+                dishToSave.setName(rs.getString("name"));
+                dishToSave.setDishType(DishTypeEnum.valueOf(rs.getString("dish_type")));
+            }
+            rs.close();
+
+            if (dishExists) {
+                String dissociateSql = "update ingredient set id_dish = null where id_dish = ?";
+                dissociateStmt = conn.prepareStatement(dissociateSql);
+                dissociateStmt.setInt(1, dishToSave.getId());
+                dissociateStmt.executeUpdate();
+            }
+
+            if (dishToSave.getIngredients() != null && !dishToSave.getIngredients().isEmpty()) {
+                String checkIngredientSql = "select id from ingredient where id = ?";
+                PreparedStatement checkIngredientStmt = conn.prepareStatement(checkIngredientSql);
+
+                for (Ingredient ingredient : dishToSave.getIngredients()) {
+                    checkIngredientStmt.setInt(1, ingredient.getId());
+                    rs = checkIngredientStmt.executeQuery();
+
+                    if (!rs.next()) {
+                        conn.rollback();
+                        throw new RuntimeException("Ingredient non trouve avec ID: " + ingredient.getId());
+                    }
+                    rs.close();
+                }
+
+                String associateSql = "update ingredient set id_dish = ? where id = ?";
+                associateStmt = conn.prepareStatement(associateSql);
+
+                for (Ingredient ingredient : dishToSave.getIngredients()) {
+                    associateStmt.setInt(1, dishToSave.getId());
+                    associateStmt.setInt(2, ingredient.getId());
+                    associateStmt.addBatch();
+                }
+
+                associateStmt.executeBatch();
+            }
+
+            conn.commit();
+            return dishToSave;
+
+        } catch (SQLException e) {
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException rollbackEx) {
+                    // ignore
+                }
+            }
+            throw new RuntimeException("Erreur sauvegarde plat: " + e.getMessage(), e);
+        } finally {
+            try {
+                if (rs != null) rs.close();
+                if (checkDishStmt != null) checkDishStmt.close();
+                if (dishStmt != null) dishStmt.close();
+                if (dissociateStmt != null) dissociateStmt.close();
+                if (associateStmt != null) associateStmt.close();
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                }
+            } catch (SQLException e) {
+                // ignore
+            }
+        }
+    }
+
+
 public List<Dish> findDishsByIngredientName(String ingredientName) {
     List<Dish> dishes = new ArrayList<>();
     Connection conn = null;
@@ -352,7 +423,7 @@ public List<Ingredient> findIngredientsByCriteria(String ingredientName, Categor
         int maxId = 0;
         Connection conn = null;
         PreparedStatement pstmt = null;
-        String sql = "select max(id) as max_id from Ingredient group by id";
+        String sql = "select max(id) as max_id from Ingredient";
         try {
             conn = dbConnection.getConnection();
             pstmt = conn.prepareStatement(sql);
@@ -365,7 +436,7 @@ public List<Ingredient> findIngredientsByCriteria(String ingredientName, Categor
     }
 
     public int getMaxDishId() {
-        String sql = "select max(id) as max_id from dish group by id";
+        String sql = "select max(id) as max_id from dish";
         try {
             Connection conn = dbConnection.getConnection();
             PreparedStatement pstmt = conn.prepareStatement(sql);
