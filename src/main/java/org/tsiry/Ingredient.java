@@ -1,69 +1,45 @@
 package org.tsiry;
+import java.util.Objects;
 
 public class Ingredient {
-    private int id;
+    private Integer id;
     private String name;
-    private double price;
     private CategoryEnum category;
+    private Double price;
     private Dish dish;
-    private double requiredQuantity;
+    private Double quantity;
 
-    public Ingredient(int id, String name, double price, CategoryEnum category, Dish dish) {
-        this.id = id;
-        this.name = name;
-        this.price = price;
-        this.category = category;
-        this.dish = dish;
+    public Double getQuantity() {
+        return quantity;
     }
 
-    public Ingredient(String name, double price, CategoryEnum category) {
-        this.name = name;
-        this.price = price;
-        this.category = category;
-    }
-
-    public Ingredient(int id, String name, double price, CategoryEnum category) {
-        this.id = id;
-        this.name = name;
-        this.price = price;
-        this.category = category;
-    }
-
-    public String getCategoryName() {
-        if (this.category != null) {
-            return this.category.toString();
-        }
-        return "";
-    }
-
-    public String getDishName() {
-        if (this.dish != null) {
-            return this.dish.toString();
-        }
-        return "";
-    }
-
-
-    @Override
-    public String toString() {
-        return "Ingredient{" +
-                "id=" + id +
-                ", name='" + name + '\'' +
-                ", price=" + price +
-                ", category=" + getCategoryName() +
-                ", dish=" + dish +
-                '}'+
-                '\n';
+    public void setQuantity(Double quantity) {
+        this.quantity = quantity;
     }
 
     public Ingredient() {
     }
 
-    public int getId() {
+    public Ingredient(Integer id) {
+        this.id = id;
+    }
+
+    public Ingredient(Integer id, String name, CategoryEnum category, Double price) {
+        this.id = id;
+        this.name = name;
+        this.category = category;
+        this.price = price;
+    }
+
+    public String getDishName() {
+        return dish == null ? null : dish.getName();
+    }
+
+    public Integer getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 
@@ -75,20 +51,20 @@ public class Ingredient {
         this.name = name;
     }
 
-    public double getPrice() {
-        return price;
-    }
-
-    public void setPrice(double price) {
-        this.price = price;
-    }
-
     public CategoryEnum getCategory() {
         return category;
     }
 
     public void setCategory(CategoryEnum category) {
         this.category = category;
+    }
+
+    public Double getPrice() {
+        return price;
+    }
+
+    public void setPrice(Double price) {
+        this.price = price;
     }
 
     public Dish getDish() {
@@ -99,7 +75,27 @@ public class Ingredient {
         this.dish = dish;
     }
 
-    public Double getDishCost(){
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        Ingredient that = (Ingredient) o;
+        return Objects.equals(id, that.id) && Objects.equals(name, that.name) && category == that.category && Objects.equals(price, that.price) && Objects.equals(dish, that.dish);
+    }
 
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, name, category, price, dish);
+    }
+
+    @Override
+    public String toString() {
+        return "Ingredient{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", category=" + category +
+                ", price=" + price +
+                ", dishName=" + getDishName() +
+                ", quantity=" + quantity +
+                '}';
     }
 }
