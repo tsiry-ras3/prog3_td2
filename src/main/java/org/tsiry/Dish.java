@@ -8,6 +8,7 @@ public class Dish {
     private String name;
     private DishTypeEnum dishType;
     private List<Ingredient> ingredients;
+    private DishIngredient dishIngredient;
 
     public Double getPrice() {
         return price;
@@ -20,7 +21,8 @@ public class Dish {
     public Double getDishCost() {
         double totalPrice = 0;
         for (int i = 0; i < ingredients.size(); i++) {
-            Double quantity = ingredients.get(i).getQuantity();
+            Double quantity = dishIngredient.getQuantityRequired();
+
             if(quantity == null) {
                 throw new RuntimeException("...");
             }
