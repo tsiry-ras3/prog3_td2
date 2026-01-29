@@ -1,4 +1,5 @@
 import java.sql.*;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -83,6 +84,59 @@ public class DataRetriever {
         }
     }
 
+    Order saveOrder(Order orderTosSave) {
+        DataRetriever dataRetriever = new DataRetriever();
+        for (DishOrder dishOrder : orderTosSave.getDishOrderList()) {
+            Dish dish = dataRetriever.findDishById(dishOrder.getDish().getId());
+            int dishQuantity = dishOrder.getQuantity();
+
+            for (DishIngredient dishIngredient : dish.getDishIngredients()) {
+                Ingredient ingredient =
+                        dataRetriever.findIngredientById(dishIngredient.getIngredient().getId());
+                Double requiredQuantity =
+                        dishIngredient.getQuantity() * dishQuantity;
+                StockValue stockValue =
+                        ingredient.getStockValueAt(Instant.now());
+
+                if (stockValue == null ||
+                        stockValue.getQuantity() < requiredQuantity) {
+                    throw new RuntimeException(
+                            "Stock insuffisant pour l'ingrédient : "
+                                    + ingredient.getName()
+                    );
+                }
+            }
+        }
+        String upsertOrderSql = """
+                    INSERT INTO "order" (id, reference, creation_datetime)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT (id) DO NOTHING
+                    RETURNING id
+                """;
+        try (Connection conn = new DBConnection().getConnection()){
+            conn.setAutoCommit(false);
+            String orderReference;
+            try(PreparedStatement ps = conn.prepareStatement(upsertOrderSql)){
+                if (orderTosSave.getId() != null){
+                    ps.setInt(1, orderTosSave.getId());
+                }else{
+                    ps.setInt((1, getNextSerialValue(conn, "order", "id")));
+                }
+                ps.setString(2, orderTosSave.getReference());
+                ps.setTimestamp(3, Timestamp.from(orderTosSave.getCreationDatetime()));
+                try (ResultSet rs = ps.executeQuery()){
+                    rs.next();
+                    orderReference = rs.getString("id");
+                }
+            }
+
+
+            conn.commit();
+            return findOrderByReference(orderReference);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     Ingredient saveIngredient(Ingredient toSave) {
         String upsertIngredientSql = """
