@@ -7,6 +7,24 @@ public class Order {
     private String reference;
     private Instant creationDatetime;
     private List<DishOrder> dishOrderList;
+    private PayementStatusEnum payementStatus;
+    private Sale sale;
+
+    public PayementStatusEnum getPayementStatus() {
+        return payementStatus;
+    }
+
+    public void setPayementStatus(PayementStatusEnum payementStatus) {
+        this.payementStatus = payementStatus;
+    }
+
+    public Sale getSale() {
+        return sale;
+    }
+
+    public void setSale(Sale sale) {
+        this.sale = sale;
+    }
 
     public Integer getId() {
         return id;
@@ -52,7 +70,6 @@ public class Order {
 
     Double getTotalAmountWithoutVat() {
         throw new RuntimeException("Not implemented");
-
     }
 
     Double getTotalAmountWithVat() {

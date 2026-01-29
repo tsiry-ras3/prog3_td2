@@ -10,16 +10,42 @@ public class DataRetriever {
     Order findOrderByReference(String reference) {
         DBConnection dbConnection = new DBConnection();
         try (Connection connection = dbConnection.getConnection()) {
-            PreparedStatement preparedStatement = connection.prepareStatement("""
-                    select id, reference, creation_datetime from "order" where reference like ?""");
+            PreparedStatement preparedStatement = connection.prepareStatement("""  
+                     SELECT     o.id,
+                    o.reference,
+                    o.creation_datetime,
+                    o.payement_status,
+                    s.id AS sale_id,
+                    s.creationDatetime AS sale_creation_datetime
+                     FROM "order" o
+                     LEFT JOIN sale s ON s.id = o.id_sale
+                     WHERE o.reference ilike ?
+                    """);
             preparedStatement.setString(1, reference);
             ResultSet resultSet = preparedStatement.executeQuery();
             if (resultSet.next()) {
                 Order order = new Order();
                 Integer idOrder = resultSet.getInt("id");
+
                 order.setId(idOrder);
                 order.setReference(resultSet.getString("reference"));
-                order.setCreationDatetime(resultSet.getTimestamp("creation_datetime").toInstant());
+                order.setCreationDatetime(
+                        resultSet.getTimestamp("sale_creation_datetime").toInstant()
+                );
+                order.setPayementStatus(
+                        PayementStatusEnum.valueOf(resultSet.getString("payement_status"))
+                );
+
+                if (resultSet.getObject("sale_id") != null) {
+                    Sale sale = new Sale();
+                    sale.setId(resultSet.getInt("sale_id"));
+                    sale.setCreationDatetime(
+                            resultSet.getTimestamp("sale_creation_datetime").toInstant()
+                    );
+                    sale.setOrder(order);
+                    order.setSale(sale);
+                }
+
                 order.setDishOrderList(findDishOrderByIdOrder(idOrder));
                 return order;
             }
@@ -85,6 +111,15 @@ public class DataRetriever {
     }
 
     Order saveOrder(Order orderTosSave) {
+
+        if (orderTosSave.getId() != null) {
+            Order existingOrder = findOrderByReference(orderTosSave.getReference());
+            if (existingOrder != null && PayementStatusEnum.PAID.equals(existingOrder.getPayementStatus())) {}
+            {
+                throw new RuntimeException("Order already exists with reference " + orderTosSave.getReference());
+            }
+        }
+
         DataRetriever dataRetriever = new DataRetriever();
         for (DishOrder dishOrder : orderTosSave.getDishOrderList()) {
             Dish dish = dataRetriever.findDishById(dishOrder.getDish().getId());
@@ -108,31 +143,46 @@ public class DataRetriever {
             }
         }
         String upsertOrderSql = """
-                    INSERT INTO "order" (id, reference, creation_datetime)
-                    VALUES (?, ?, ?)
-                    ON CONFLICT (id) DO NOTHING
-                    RETURNING id
+                INSERT INTO "order"(id, reference, creation_datetime, payement_status)
+                VALUES (?, ?, ?, ?::payement_status)
+                ON CONFLICT (id) DO UPDATE
+                SET payement_status = EXCLUDED.payement_status
+                RETURNING id
                 """;
-        try (Connection conn = new DBConnection().getConnection()){
+        try (Connection conn = new DBConnection().getConnection()) {
             conn.setAutoCommit(false);
-            String orderReference;
-            try(PreparedStatement ps = conn.prepareStatement(upsertOrderSql)){
-                if (orderTosSave.getId() != null){
+            Integer orderId;
+            try (PreparedStatement ps = conn.prepareStatement(upsertOrderSql)) {
+                if (orderTosSave.getId() != null) {
                     ps.setInt(1, orderTosSave.getId());
-                }else{
-                    ps.setInt((1, getNextSerialValue(conn, "order", "id")));
+                } else {
+                    ps.setInt(1, getNextSerialValue(conn, "order", "id"));
                 }
                 ps.setString(2, orderTosSave.getReference());
                 ps.setTimestamp(3, Timestamp.from(orderTosSave.getCreationDatetime()));
-                try (ResultSet rs = ps.executeQuery()){
+                try (ResultSet rs = ps.executeQuery()) {
                     rs.next();
-                    orderReference = rs.getString("id");
+                    orderId = rs.getInt("id");
                 }
             }
 
 
+            if (PayementStatusEnum.PAID.equals(orderTosSave.getPayementStatus())) {
+                PreparedStatement psSale = conn.prepareStatement("""
+                INSERT INTO sale(id, creation_datetime, id_order)
+                VALUES (?, ?, ?)
+                ON CONFLICT (id_order) DO NOTHING
+            """);
+
+                psSale.setInt(1, getNextSerialValue(conn, "sale", "id"));
+                psSale.setTimestamp(2, Timestamp.from(Instant.now()));
+                psSale.setInt(3, orderId);
+                psSale.executeUpdate();
+            }
+
+
             conn.commit();
-            return findOrderByReference(orderReference);
+            return findOrderByReference(orderTosSave.getReference());
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -475,4 +525,8 @@ public class DataRetriever {
             ps.executeQuery();
         }
     }
+
+//    Sale createSaleFrom(Order order) {
+//
+//    }
 }

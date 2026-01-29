@@ -70,6 +70,21 @@ create table if not exists "order"
     creation_datetime timestamp without time zone
 );
 
+
+
+create table if not exists Sale
+(
+    id               serial primary key ,
+    creationDatetime timestamp
+);
+
+create type payment_status as enum ('PAID', 'UNPAID');
+
+ALTER TABLE "order"
+    ADD COLUMN IF NOT EXISTS status payment_status,
+    ADD COLUMN IF NOT EXISTS id_sale int,
+    ADD CONSTRAINT fk_order_sale FOREIGN KEY (id_sale) REFERENCES Sale (id);
+
 create table if not exists dish_order
 (
     id       serial primary key,
